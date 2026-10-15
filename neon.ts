@@ -1,10 +1,17 @@
 import { defineConfig } from "@neon/config/v1";
+import { config } from "dotenv";
+
+config({ path: [".env.local", ".env"], quiet: true });
 
 export default defineConfig({
   // Declare your Neon services here
   auth: false,
   functions: {
-    hello: { name: "Hello World", source: "./hello.ts" },
+    hello: {
+      name: "Essay text analysis",
+      source: "./hello.ts",
+      env: { FUNCTION_API_KEY: process.env.FUNCTION_API_KEY! },
+    },
   },
   buckets: {
     // "private" is the default; use "public_read" for anonymous reads

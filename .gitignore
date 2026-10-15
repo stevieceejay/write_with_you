@@ -5,6 +5,8 @@ node_modules/
 .cache/
 src/generated/prisma/
 coverage/
+.next/
+*.tsbuildinfo
 *.log
 
 .neon

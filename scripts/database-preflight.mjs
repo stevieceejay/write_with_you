@@ -1,6 +1,7 @@
+import './load-env.mjs';
 import pg from 'pg';
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
 if (!connectionString || connectionString.includes('YOUR_')) {
   throw new Error('Set a real development DATABASE_URL in .env first.');
 }
@@ -40,8 +41,17 @@ try {
   const { rows: [{ database }] } = await client.query('SELECT current_database() AS database');
   console.log(`Database preflight passed: ${database}; ${applicationTables.length} application tables. Credentials omitted.`);
 } catch (error) {
-  const message = String(error.message).replaceAll(connectionString, '[DATABASE_URL]');
-  console.error(`Database preflight failed: ${message}`);
+  const codes = new Set();
+  function collectCodes(failure) {
+    if (failure?.code) codes.add(String(failure.code));
+    if (Array.isArray(failure?.errors)) failure.errors.forEach(collectCodes);
+  }
+  collectCodes(error);
+  let message = String(error.message || 'Connection could not be established.').replaceAll(connectionString, '[DATABASE_URL]');
+  for (const password of [url.password, decodeURIComponent(url.password)]) {
+    if (password) message = message.replaceAll(password, '[REDACTED]');
+  }
+  console.error(`Database preflight failed${codes.size ? ` (${[...codes].join(', ')})` : ''}: ${message}`);
   process.exitCode = 1;
 } finally {
   await client.end();

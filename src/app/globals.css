@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+:root { color-scheme: light; }
+body { margin: 0; background: #f7f5f0; color: #243c35; font-family: Arial, sans-serif; }
+a { color: #215d4f; text-underline-offset: 4px; }
+button { cursor: pointer; }

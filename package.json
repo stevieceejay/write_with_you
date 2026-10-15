@@ -5,20 +5,44 @@
   "type": "module",
   "engines": { "node": ">=22.12.0" },
   "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "test": "node --experimental-strip-types --test tests/backend.test.mjs tests/function.test.mjs",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
-    "db:preflight": "node --env-file=.env scripts/database-preflight.mjs",
+    "db:preflight": "node scripts/database-preflight.mjs",
     "db:migrate": "npm run db:preflight && prisma migrate deploy",
     "db:status": "prisma migrate status",
-    "db:test": "node --env-file=.env --test tests/database.integration.test.mjs"
+    "db:test": "node --import ./scripts/load-env.mjs --test tests/database.integration.test.mjs",
+    "db:test:local": "node --test tests/database.local.test.mjs",
+    "neon:secrets": "node scripts/prepare-neon-secrets.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0",
+    "@clerk/nextjs": "^7.0.0",
+    "@neon/config": "^1.9.2",
+    "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "dotenv": "^17.0.0",
-    "pg": "^8.0.0"
+    "next": "^16.0.10",
+    "pg": "^8.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.4.3",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "prisma": "^7.0.0",
-    "typescript": "^5.0.0"
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.9.0"
   }
 }

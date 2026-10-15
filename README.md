@@ -1,7 +1,9 @@
-# Write With You — database foundation
+# Write With You
 
-This repository contains the approved PostgreSQL/Prisma database design for the
-essay-writing application. It does not yet contain the web application.
+This repository contains the Next.js backend, a small application shell, and the
+approved PostgreSQL/Prisma schema for the essay-writing application. The complete
+six-mode writing interface is not implemented yet. See [the backend guide](docs/backend.md)
+for service contracts and API examples.
 
 ## Current setup status
 
@@ -10,25 +12,29 @@ essay-writing application. It does not yet contain the web application.
 - The integrity migration adds one-working-version uniqueness, full-text indexes,
   outline cycle prevention, value checks, and sealed-snapshot protection.
 - No live database has been created or migrated from this workspace yet.
-- Dependencies could not be downloaded because this execution environment rejects
-  npm registry requests with EACCES. There is no lockfile or generated Prisma client yet.
-- JavaScript syntax can be checked locally; Prisma validation and the PostgreSQL
-  integration suite still require dependency installation and a database.
+- Dependencies were installed from the user's terminal. A lockfile is included.
+- Prisma validation, TypeScript checking, and a production build have passed.
+- Backend/security tests and migration tests on in-memory PostgreSQL have passed.
+- The server has started successfully and passed HTTP smoke checks.
+- Hosted Neon, Clerk, OpenAI, and storage checks still need live credentials.
 
 ## Set up Neon PostgreSQL
 
-Neon hosts PostgreSQL. Its CLI is optional; you can also use the Neon web console.
-From your normal PowerShell terminal, the current CLI commands are:
+The local `.neon` file targets project `hidden-mouse-66679667`, branch `production`,
+organization `org-red-leaf-23033290`. This link was written offline and has not been
+verified against Neon. From a terminal with network access:
 
 ```powershell
-npm.cmd install --global neon@latest
-neon.cmd auth
-neon.cmd projects create --name write-with-you
+neon.cmd login --config-dir .cache/neon
+npm.cmd run neon:secrets
+neon.cmd deploy --config-dir .cache/neon
 ```
 
-Choose a new, empty development database. In Neon, obtain its direct PostgreSQL
-connection string, including the provider's TLS parameters. Do not paste the
-password or full connection string into chat or commit it to Git.
+Finish browser sign-in when prompted. Deploy provisions the private `assets`
+bucket and protected text-analysis function declared in `neon.ts`, and pulls
+environment variables. This command does not host the Next.js frontend.
+Use a dedicated development database or branch for testing. Never reset an existing
+database or paste credentials into chat or Git.
 
 ## Configure and apply the migrations
 
@@ -51,6 +57,11 @@ npm.cmd run db:generate
 npm.cmd run db:migrate
 npm.cmd run db:status
 npm.cmd run db:test
+npm.cmd test
+npm.cmd run db:test:local
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run dev
 ```
 
 `db:migrate` first checks the target, refuses an existing unmanaged database, and
@@ -97,10 +108,11 @@ Deleting a subject requires clearing its essays' `subjectId` first in one transa
 
 ## Security boundaries before production
 
-These migrations enforce referential integrity, not end-user authentication.
-There are no RLS policies, application server, or authentication routes yet.
-Every future query must resolve the authenticated user on the server and check essay
-ownership, including reads of child records. UUIDs do not grant authorization.
+The backend uses Clerk for server-verified identity and checks essay ownership for
+every service operation, including reads of child records. Sign-in and sign-up routes
+are included. Configure a Clerk application with verified email before using them.
+The backend fails closed when authentication is unconfigured. UUIDs do not grant access.
+RLS policies are not enabled yet; database constraints do not replace authorization.
 
 Use separate migration and restricted runtime database roles before production.
 The runtime role must not own tables, disable triggers, truncate tables, or create
