@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider     = "postgresql"
+  relationMode = "foreignKeys"
+}
+
+enum EssayStage {
+  PLAN
+  DRAFT
+  REVISE
+  REVIEW
+}
+
+enum VersionKind {
+  WORKING
+  SNAPSHOT
+}
+
+enum OutlineRole {
+  THESIS
+  MAIN_IDEA
+  REASON
+  EVIDENCE
+  EXAMPLE
+  EXPLANATION
+  TRANSITION
+  INTRODUCTION
+  CONCLUSION
+}
+
+enum ContentOrigin {
+  STUDENT
+  AI
+  MIXED
+}
+
+enum PlanningStep {
+  TOPIC
+  AUDIENCE
+  PURPOSE
+  THESIS
+  REASONS
+  SUPPORTING_DETAILS
+  COMPLETE
+}
+
+enum MessageRole {
+  STUDENT
+  ASSISTANT
+}
+
+enum AnnotationReview {
+  SUGGESTED
+  CONFIRMED
+  DISMISSED
+}
+
+enum MappingStatus {
+  CURRENT
+  STALE
+}
+
+enum RelationshipType {
+  SUPPORTS
+  EXPLAINS
+  EXEMPLIFIES
+  CONTRASTS
+  CONCLUDES
+}
+
+enum AIRequestStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  STALE
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  STUDENT_CONFIRMED
+  VERIFIED
+  DISPUTED
+}
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  authProvider        String    @db.VarChar(80)
+  authSubject         String    @db.VarChar(255)
+  email               String    @unique @db.VarChar(320)
+  displayName         String?   @db.VarChar(120)
+  emailVerifiedAt     DateTime? @db.Timestamptz(3)
+  timezone            String    @default("UTC") @db.VarChar(80)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+  deletionRequestedAt DateTime? @db.Timestamptz(3)
+
+  subjects Subject[]
+  essays   Essay[]
+
+  @@unique([authProvider, authSubject])
+}
+
+model Subject {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  name           String   @db.VarChar(120)
+  normalizedName String   @db.VarChar(120)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  essays Essay[]
+
+  @@unique([userId, normalizedName])
+  @@unique([id, userId])
+}
+
+model Essay {
+  id            String     @id @default(uuid()) @db.Uuid
+  userId        String     @db.Uuid
+  subjectId     String?    @db.Uuid
+  title         String     @default("Untitled essay") @db.VarChar(300)
+  workflowStage EssayStage @default(PLAN)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+  lastOpenedAt  DateTime?  @db.Timestamptz(3)
+  deletedAt     DateTime?  @db.Timestamptz(3)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId, userId], references: [id, userId], onDelete: NoAction)
+
+  versions   EssayVersion[]
+  sources    Source[]
+  aiRequests AIRequest[]
+
+  @@index([userId, deletedAt, updatedAt(sort: Desc)])
+  @@index([userId, subjectId, deletedAt, updatedAt(sort: Desc)])
+}
+
+model EssayVersion {
+  id              String      @id @default(uuid()) @db.Uuid
+  essayId         String      @db.Uuid
+  parentVersionId String?     @db.Uuid
+  kind            VersionKind @default(WORKING)
+  label           String?     @db.VarChar(160)
+  topic           String?     @db.Text
+  audience        String?     @db.VarChar(200)
+  purpose         String?     @db.VarChar(200)
+  essayType       String?     @db.VarChar(80)
+  documentJson    Json        @db.JsonB
+  plainText       String      @default("") @db.Text
+  formatting      Json        @default("{}") @db.JsonB
+  schemaVersion   Int         @default(1)
+  lockVersion     Int         @default(0)
+  origin          ContentOrigin @default(STUDENT)
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
+  sealedAt        DateTime?   @db.Timestamptz(3)
+
+  essay  Essay         @relation(fields: [essayId], references: [id], onDelete: Cascade)
+  parent EssayVersion? @relation("VersionHistory", fields: [parentVersionId, essayId], references: [id, essayId], onDelete: NoAction)
+
+  children        EssayVersion[] @relation("VersionHistory")
+  outlineNodes    OutlineNode[]
+  planningSession PlanningSession?
+  annotations     Annotation[]
+  relationships   IdeaRelationship[]
+  evidenceLinks   EvidenceLink[]
+  aiRequests      AIRequest[]
+  aiProposals     AIProposal[]
+
+  @@unique([id, essayId])
+  @@index([essayId, kind, createdAt(sort: Desc)])
+  @@index([parentVersionId, essayId])
+}
+
+model OutlineNode {
+  id          String        @id @default(uuid()) @db.Uuid
+  versionId   String        @db.Uuid
+  nodeKey     String        @default(uuid()) @db.Uuid
+  parentId    String?       @db.Uuid
+  position    Int
+  role        OutlineRole
+  content     String        @db.Text
+  origin      ContentOrigin @default(STUDENT)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+
+  version EssayVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  parent  OutlineNode? @relation("OutlineTree", fields: [parentId, versionId], references: [id, versionId], onDelete: NoAction)
+
+  children    OutlineNode[] @relation("OutlineTree")
+  annotations Annotation[]
+
+  @@unique([id, versionId])
+  @@unique([versionId, nodeKey])
+  @@index([versionId, parentId, position])
+}
+
+model PlanningSession {
+  id        String       @id @default(uuid()) @db.Uuid
+  versionId String       @unique @db.Uuid
+  step      PlanningStep @default(TOPIC)
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @db.Timestamptz(3)
+
+  version  EssayVersion      @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  messages PlanningMessage[]
+}
+
+model PlanningMessage {
+  id        String        @id @default(uuid()) @db.Uuid
+  sessionId String        @db.Uuid
+  role      MessageRole
+  step      PlanningStep?
+  content   String        @db.Text
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+
+  session PlanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt, id])
+}
+
+model Annotation {
+  id                 String           @id @default(uuid()) @db.Uuid
+  versionId          String           @db.Uuid
+  outlineNodeId      String?          @db.Uuid
+  annotationKey      String           @default(uuid()) @db.Uuid
+  role               OutlineRole
+  anchor             Json             @db.JsonB
+  explanation        String?          @db.Text
+  basedOnLockVersion Int
+  origin             ContentOrigin    @default(AI)
+  reviewStatus       AnnotationReview @default(SUGGESTED)
+  mappingStatus      MappingStatus    @default(CURRENT)
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+
+  version     EssayVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  outlineNode OutlineNode? @relation(fields: [outlineNodeId, versionId], references: [id, versionId], onDelete: NoAction)
+
+  outgoing      IdeaRelationship[] @relation("RelationshipFrom")
+  incoming      IdeaRelationship[] @relation("RelationshipTo")
+  evidenceLinks EvidenceLink[]
+
+  @@unique([id, versionId])
+  @@unique([versionId, annotationKey])
+  @@index([versionId, role, mappingStatus])
+  @@index([outlineNodeId, versionId])
+}
+
+model IdeaRelationship {
+  id               String           @id @default(uuid()) @db.Uuid
+  versionId        String           @db.Uuid
+  fromAnnotationId String           @db.Uuid
+  toAnnotationId   String           @db.Uuid
+  type             RelationshipType
+  explanation      String?          @db.Text
+  origin           ContentOrigin    @default(AI)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+
+  version EssayVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  from    Annotation   @relation("RelationshipFrom", fields: [fromAnnotationId, versionId], references: [id, versionId], onDelete: Cascade)
+  to      Annotation   @relation("RelationshipTo", fields: [toAnnotationId, versionId], references: [id, versionId], onDelete: Cascade)
+
+  @@unique([versionId, fromAnnotationId, toAnnotationId, type], map: "IdeaRelationship_unique_link")
+  @@index([fromAnnotationId, versionId])
+  @@index([toAnnotationId, versionId])
+}
+
+model Source {
+  id              String    @id @default(uuid()) @db.Uuid
+  essayId         String    @db.Uuid
+  title           String    @db.Text
+  authors         Json      @default("[]") @db.JsonB
+  url             String?   @db.Text
+  publicationDate String?   @db.VarChar(40)
+  accessedAt      DateTime? @db.Timestamptz(3)
+  metadata        Json      @default("{}") @db.JsonB
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  essay         Essay          @relation(fields: [essayId], references: [id], onDelete: Cascade)
+  evidenceLinks EvidenceLink[]
+
+  @@unique([id, essayId])
+  @@index([essayId])
+}
+
+model EvidenceLink {
+  id                 String             @id @default(uuid()) @db.Uuid
+  essayId            String             @db.Uuid
+  versionId          String             @db.Uuid
+  annotationId       String             @db.Uuid
+  sourceId           String             @db.Uuid
+  quotation          String?            @db.Text
+  locator            String?            @db.VarChar(200)
+  citationSnapshot   Json               @db.JsonB
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+
+  version    EssayVersion @relation(fields: [versionId, essayId], references: [id, essayId], onDelete: Cascade)
+  annotation Annotation   @relation(fields: [annotationId, versionId], references: [id, versionId], onDelete: Cascade)
+  source     Source       @relation(fields: [sourceId, essayId], references: [id, essayId], onDelete: NoAction)
+
+  @@index([versionId])
+  @@index([annotationId, versionId])
+  @@index([sourceId, essayId])
+}
+
+model AIRequest {
+  id                 String          @id @default(uuid()) @db.Uuid
+  essayId            String          @db.Uuid
+  versionId          String?         @db.Uuid
+  basedOnLockVersion Int?
+  operation          String          @db.VarChar(80)
+  status             AIRequestStatus @default(QUEUED)
+  model              String          @db.VarChar(120)
+  promptVersion      String          @db.VarChar(80)
+  idempotencyKey     String          @db.VarChar(160)
+  providerRequestId  String?         @db.VarChar(255)
+  inputTokens        Int?
+  outputTokens       Int?
+  errorCode          String?         @db.VarChar(120)
+  createdAt          DateTime        @default(now()) @db.Timestamptz(3)
+  completedAt        DateTime?       @db.Timestamptz(3)
+
+  essay     Essay         @relation(fields: [essayId], references: [id], onDelete: Cascade)
+  version   EssayVersion? @relation(fields: [versionId, essayId], references: [id, essayId], onDelete: NoAction)
+  proposals AIProposal[]
+
+  @@unique([id, essayId])
+  @@unique([essayId, idempotencyKey])
+  @@index([essayId, createdAt(sort: Desc)])
+  @@index([versionId, essayId])
+  @@index([status, createdAt])
+}
+
+model AIProposal {
+  id                 String         @id @default(uuid()) @db.Uuid
+  essayId            String         @db.Uuid
+  targetVersionId    String         @db.Uuid
+  requestId          String?        @db.Uuid
+  basedOnLockVersion Int
+  operation          String         @db.VarChar(80)
+  changes            Json           @db.JsonB
+  rationale          String?        @db.Text
+  status             ProposalStatus @default(PENDING)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
+  resolvedAt         DateTime?      @db.Timestamptz(3)
+
+  targetVersion EssayVersion @relation(fields: [targetVersionId, essayId], references: [id, essayId], onDelete: Cascade)
+  request       AIRequest?   @relation(fields: [requestId, essayId], references: [id, essayId], onDelete: NoAction)
+
+  @@index([targetVersionId, status, createdAt])
+  @@index([requestId, essayId])
+}
