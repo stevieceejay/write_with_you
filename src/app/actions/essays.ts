@@ -19,5 +19,6 @@ export async function deleteSubject(input: unknown) { return action(() => backen
 export async function saveSource(input: unknown) { return action(() => backend.saveSource(input)); }
 export async function deleteSource(input: unknown) { return action(() => backend.deleteSource(input)); }
 export async function updateAnnotation(input: unknown) { return action(() => backend.updateAnnotation(input)); }
+export async function annotatePassage(input: unknown) { return action(() => backend.annotatePassage(input)); }
 export async function citeSource(input: unknown) { return action(() => backend.citeSource(input)); }
 export async function resolveProposal(input: unknown) { return action(() => backend.resolveProposal(input)); }

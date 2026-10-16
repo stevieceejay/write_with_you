@@ -44,6 +44,7 @@ const deniedWrites = {
   restoreSnapshot: { essayId, expectedLockVersion: 0, snapshotId: randomUUID() },
   saveSource: { essayId, title: 'A reference', authors: [] }, deleteSource: { essayId, sourceId: randomUUID() },
   updateAnnotation: { essayId, expectedLockVersion: 0, annotationId: randomUUID(), role: 'EXAMPLE', reviewStatus: 'CONFIRMED' },
+  annotatePassage: { essayId, expectedLockVersion: 0, blockId: randomUUID(), from: 0, to: 5, role: 'THESIS' },
   citeSource: { essayId, expectedLockVersion: 0, annotationId: randomUUID(), sourceId: randomUUID() },
   resolveProposal: { essayId, expectedLockVersion: 0, proposalId: randomUUID(), decision: 'accept' },
   requestAI: { essayId, expectedLockVersion: 0, operation: 'DRAFT', idempotencyKey: randomUUID() },
@@ -120,6 +121,25 @@ test('a valid save derives plain text and invalidates old interpretations', asyn
   assert.equal(data.plainText, 'A student idea.');
   assert.equal(annotations.data.mappingStatus, 'STALE');
   assert.equal(proposals.data.status, 'STALE');
+});
+
+test('a student-created highlight derives its quotation from the owned document', async () => {
+  const blockId = randomUUID(); let annotation;
+  const tx = {
+    $queryRaw: async () => [{ id: essayId }],
+    essayVersion: { findFirst: async () => ({ id: versionId, documentJson: { type: 'doc', content: [{ type: 'paragraph', attrs: { id: blockId }, content: [{ type: 'text', text: 'A clear central idea.' }] }] } }), updateMany: async () => ({ count: 1 }) },
+    aIProposal: { updateMany: async () => ({}) }, essay: { update: async () => ({}) },
+    annotation: { create: async ({ data }) => { annotation = data; return { id: randomUUID() }; } },
+  };
+  const app = backend({ $transaction: fn => fn(tx) });
+  const input = { essayId, expectedLockVersion: 2, blockId, from: 2, to: 7, role: 'THESIS' };
+  assert.equal((await app.annotatePassage(input)).lockVersion, 3);
+  assert.deepEqual(annotation.anchor, { blockId, from: 2, to: 7, quote: 'clear' });
+  assert.equal(annotation.reviewStatus, 'CONFIRMED'); assert.equal(annotation.origin, 'STUDENT');
+  annotation = null;
+  await assert.rejects(app.annotatePassage({ ...input, to: 900 }), code('VALIDATION_ERROR'));
+  await assert.rejects(app.annotatePassage({ ...input, blockId: randomUUID() }), code('VALIDATION_ERROR'));
+  assert.equal(annotation, null);
 });
 
 test('snapshot copying remaps row identities and seals before setting history parent', async () => {

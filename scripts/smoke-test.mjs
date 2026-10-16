@@ -8,8 +8,16 @@ console.log('PASS GET /api/health: 200');
 
 const home = await fetch(base, { signal: AbortSignal.timeout(10_000) });
 assert.equal(home.status, 200);
-assert.match(await home.text(), /Your ideas deserve room to grow/);
+const homepage = await home.text();
+assert.match(homepage, /Your words/);
+for (const label of ['Plan', 'Draft', 'Revise', 'Review', 'Explain', 'Folder']) assert.ok(homepage.includes(label));
+assert.match(homepage, /Search essay history/);
 console.log('PASS GET /: 200');
+
+for (const path of ['/essays?view=folders', '/essays?folder=trash', '/sign-in', '/sign-up']) {
+  const response = await fetch(new URL(path, base), { signal: AbortSignal.timeout(10_000) });
+  assert.equal(response.status, 200); console.log(`PASS GET ${path}: 200`);
+}
 
 const privateResponse = await fetch(new URL('/api/essays', base), { signal: AbortSignal.timeout(10_000) });
 // With auth configured this is 401; without credentials it must fail closed at 503.

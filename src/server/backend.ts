@@ -393,6 +393,26 @@ export function createBackend({ authenticate, database, ai }: Dependencies) {
     });
   }
 
+  async function annotatePassage(raw: unknown) {
+    const { actor, db } = await context();
+    const { input, essayId, expected } = coordinates(raw, ["blockId", "from", "to", "role"]);
+    const blockId = v.uuid(input.blockId, "blockId"), from = v.integer(input.from, "from", 0, 200_000), to = v.integer(input.to, "to", 1, 200_000);
+    const role = v.choice(input.role, v.roles, "role");
+    return db.$transaction(async tx => {
+      await lockEssay(tx, actor, essayId);
+      const current = await claim(tx, essayId, expected);
+      let passage: string | undefined;
+      function visit(node: v.DocumentNode) {
+        if (["paragraph", "heading"].includes(node.type) && node.attrs?.id === blockId) passage = v.plainText(node).replace(/\n$/, "");
+        node.content?.forEach(visit);
+      }
+      visit(v.document(current.documentJson));
+      if (passage === undefined || to <= from || to > passage.length || to - from > 2000 || !passage.slice(from, to).trim()) fail("VALIDATION_ERROR", "Select an existing passage of up to 2,000 characters.");
+      const annotation = await tx.annotation.create({ data: { versionId: current.id, role, anchor: json({ blockId, from, to, quote: passage.slice(from, to) }), origin: "STUDENT", reviewStatus: "CONFIRMED", mappingStatus: "CURRENT", basedOnLockVersion: current.lockVersion } });
+      return { annotationId: annotation.id, lockVersion: current.lockVersion };
+    });
+  }
+
   async function updateAnnotation(raw: unknown) {
     const { actor, db } = await context();
     const { input, essayId, expected } = coordinates(raw, ["annotationId", "role", "reviewStatus"]);
@@ -533,6 +553,6 @@ export function createBackend({ authenticate, database, ai }: Dependencies) {
   return { createEssay, listEssays, getEssay, updateEssay, trashEssay, restoreEssay,
     saveDraft, saveFormatting, saveSettings, saveOutline, getPlanning, answerPlanning,
     listVersions, getVersion, createSnapshot, restoreSnapshot, listSubjects, createSubject,
-    deleteSubject, saveSource, deleteSource, updateAnnotation, citeSource, exportData,
+    deleteSubject, saveSource, deleteSource, annotatePassage, updateAnnotation, citeSource, exportData,
     requestAI, listAI, resolveProposal };
 }

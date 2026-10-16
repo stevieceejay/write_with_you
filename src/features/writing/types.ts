@@ -1,0 +1,22 @@
+import type { DocumentNode, Json, Role, Step } from "../../server/validation.ts";
+export type { DocumentNode, Json, Role, Step };
+export type Mode = "plan" | "draft" | "revise" | "review" | "explain";
+export type Subject = { id: string; name: string };
+export type EssaySummary = { id: string; title: string; subjectId: string | null; subject: Subject | null; workflowStage: string; updatedAt: string; createdAt: string; deletedAt: string | null };
+export type OutlineNode = { id: string; nodeKey: string; parentId: string | null; position: number; role: Role; content: string };
+export type Annotation = { id: string; role: Role; anchor: unknown; explanation: string | null; outlineNodeId: string | null; mappingStatus: string; reviewStatus: string };
+export type Relationship = { id: string; fromAnnotationId: string; toAnnotationId: string; type: string; explanation: string | null };
+export type Version = {
+  id: string; kind: "WORKING" | "SNAPSHOT"; label: string | null; parentVersionId?: string | null;
+  topic: string | null; audience: string | null; purpose: string | null; essayType: string | null;
+  documentJson: DocumentNode; formatting: Record<string, Json>; plainText: string; lockVersion: number;
+  outlineNodes: OutlineNode[]; annotations: Annotation[]; relationships: Relationship[];
+};
+export type Essay = { id: string; title: string; subjectId: string | null; subject: Subject | null; sources: Source[]; versions: Version[] };
+export type VersionSummary = { id: string; kind: string; label: string | null; createdAt: string; sealedAt: string | null; lockVersion: number };
+export type Planning = { step: Step; prompt: string; messages: { id: string; role: string; content: string }[] };
+export type Proposal = { id: string; operation: string; status: string; rationale: string | null; changes: unknown; basedOnLockVersion: number };
+export type AIRequest = { id: string; status: string; proposals: Proposal[] };
+export type Source = { id: string; title: string; authors: unknown; url: string | null; publicationDate: string | null };
+export type Selection = { blockId: string; from: number; to: number };
+export type Notice = { kind: "success" | "error" | "info"; text: string; conflict?: boolean } | null;

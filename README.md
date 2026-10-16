@@ -1,9 +1,10 @@
 # Write With You
 
-This repository contains the Next.js backend, a small application shell, and the
-approved PostgreSQL/Prisma schema for the essay-writing application. The complete
-six-mode writing interface is not implemented yet. See [the backend guide](docs/backend.md)
-for service contracts and API examples.
+This repository contains the React essay-writing studio, its Next.js backend, and
+the approved PostgreSQL/Prisma schema. The home screen, folders, and five writing
+stages are connected to the existing ownership-checked backend. See the
+[frontend guide](docs/frontend.md) for the writing workflow and verification limits,
+and [backend guide](docs/backend.md) for service contracts and API examples.
 
 ## Current setup status
 
@@ -16,6 +17,8 @@ for service contracts and API examples.
 - Prisma validation, TypeScript checking, and a production build have passed.
 - Backend/security tests and migration tests on in-memory PostgreSQL have passed.
 - The server has started successfully and passed HTTP smoke checks.
+- The frontend includes planning, rich-text editing, revision comparisons, appearance
+  settings, passage explanations, source management, and version history.
 - Hosted Neon, Clerk, OpenAI, and storage checks still need live credentials.
 
 ## Set up Neon PostgreSQL
@@ -73,7 +76,7 @@ and essays do not persist. Run it only against development/test databases.
 
 ## Data organization
 
-- A User is linked to a verified identity from a future managed authentication provider.
+- A User is linked to a verified identity from Clerk, the managed authentication provider.
   Authentication itself has not been configured by these migrations.
 - A Subject belongs to a User. An Essay's composite subject foreign key prevents
   it from being assigned to another user's subject. No subject means Miscellaneous.

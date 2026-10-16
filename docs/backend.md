@@ -2,8 +2,8 @@
 
 The app uses Next.js App Router, Prisma 7, PostgreSQL, Clerk, OpenAI Responses,
 and the S3-compatible Neon Object Storage interface. It runs in the Node.js runtime.
-The application shell demonstrates server-rendered essay listing and creation;
-the full Plan/Draft/Revise/Review/Explain/Folder UI remains future frontend work.
+The React studio connects Plan/Draft/Revise/Review/Explain and Folder views to
+these services. See [the frontend guide](frontend.md) for the component map.
 
 ## Structure
 
@@ -48,6 +48,12 @@ This preserves interactive transactions and PostgreSQL locking for saves and sna
 Every service authenticates first. Input objects use explicit allowlists and reject
 unexpected keys such as userId. Child records are scoped through the owned essay/version.
 Unauthorized resource lookups return NOT_FOUND to avoid disclosing another user's data.
+
+`annotatePassage` is a Server Action for manually labeling selected draft text.
+It accepts essayId, expectedLockVersion, blockId, from, to, and role. The service
+checks ownership and the version lock, derives the quotation from the stored
+document, and rejects missing blocks or invalid ranges over 2,000 characters.
+It creates a confirmed student annotation; it does not require an AI call.
 
 Writing mutations lock the owned essay, then compare and increment the working
 version's lockVersion. A mismatch rolls back and returns CONFLICT. All clients must
