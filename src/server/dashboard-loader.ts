@@ -6,7 +6,7 @@ type Dependencies = {
   signedIn: () => Promise<boolean>;
   listEssays: (input: Input & { limit: number }) => Promise<{ items: unknown[]; total: number }>;
   listSubjects: () => Promise<Subject[]>;
-  reportError?: (error: unknown) => void;
+  reportError?: (error: unknown, stage: "SESSION" | "DATA") => void;
 };
 type DashboardData = { initialEssays: EssaySummary[]; subjects: Subject[]; total: number; authenticated: boolean; loadError?: string };
 const empty = (): DashboardData => ({ initialEssays: [], subjects: [], total: 0, authenticated: false });
@@ -15,7 +15,7 @@ export async function loadDashboard(input: Input, dependencies: Dependencies): P
   let signedIn: boolean;
   try { signedIn = await dependencies.signedIn(); }
   catch (error) {
-    dependencies.reportError?.(error);
+    dependencies.reportError?.(error, "SESSION");
     return { ...empty(), loadError: "We couldn’t check your sign-in session. Please reload and try again." };
   }
   if (!signedIn) return empty();
@@ -23,7 +23,7 @@ export async function loadDashboard(input: Input, dependencies: Dependencies): P
     const [essays, subjects] = await Promise.all([dependencies.listEssays({ ...input, limit: 12 }), dependencies.listSubjects()]);
     return { initialEssays: JSON.parse(JSON.stringify(essays.items)) as EssaySummary[], subjects: subjects.map(({ id, name }) => ({ id, name })), total: essays.total, authenticated: true };
   } catch (error) {
-    dependencies.reportError?.(error);
+    dependencies.reportError?.(error, "DATA");
     if (error instanceof AppError && error.code === "UNAUTHENTICATED") return { ...empty(), loadError: "Your session ended. Please sign in again." };
     return { ...empty(), authenticated: true,
       loadError: error instanceof AppError && error.code === "FORBIDDEN" ? error.message : "You are signed in, but we couldn’t load your essays. Please try again shortly." };
