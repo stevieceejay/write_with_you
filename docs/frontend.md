@@ -95,8 +95,22 @@ The selected AI model is `gpt-6.1-sol`, configured through OPENAI_MODEL. The pri
 OpenAI key has been detected without printing it; provider access could not be
 verified because outbound API requests from this workspace return EACCES.
 
-Clerk is currently unconfigured in the workspace. Full authenticated browser CRUD,
-real Neon saves, OpenAI suggestions, and private storage exports require valid
-provider credentials and reachable services. An anonymous homepage preview does
+Clerk keys and custom authentication routes have been configured in the local
+environment. Full authenticated browser CRUD, real Neon saves, OpenAI suggestions,
+and private storage exports still require reachable services. An anonymous homepage preview does
 not demonstrate those operations. No production authentication bypass or demo-user
 route was introduced.
+
+## Sign-in state and data failures
+
+Clerk's server-verified session determines whether the dashboard shows the signed-in
+account controls. An essay database or account-loading failure displays a separate
+error and does not turn an authenticated session into a guest. Email-verification
+and account restrictions display their safe server messages. An expired session
+returns the signed-out state. Backend ownership checks still run on every operation.
+
+Signed-in visitors to `/sign-in` and `/sign-up` are redirected server-side to
+`/essays`; these pages remain public for anonymous visitors. Clerk's development
+notice that SignIn cannot render for an already signed-in user indicates an active
+client session, not a missing form configuration. The dashboard logs only a safe
+error code for failed data loads so connection strings and credentials stay private.

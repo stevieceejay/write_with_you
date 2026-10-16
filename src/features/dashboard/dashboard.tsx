@@ -20,6 +20,7 @@ export function Dashboard(props: Props) {
   const [dialog, setDialog] = useState<"essay" | "subject" | null>(props.initialNew && props.authenticated ? "essay" : null);
   const [newTitle, setNewTitle] = useState(""), [subjectId, setSubjectId] = useState(""), [subjectName, setSubjectName] = useState("");
   const first = useRef(true), folders = Boolean(props.folderView), trash = folder === "trash";
+  useEffect(() => { setNotice(props.loadError ? { kind: "error", text: props.loadError } : null); }, [props.loadError]);
   const parameters = () => new URLSearchParams({ query, folder, page: String(page), limit: "12", ...(subjectFilter ? { subjectId: subjectFilter } : {}) });
   async function reload(clearSubject = false) { const params = parameters(); if (clearSubject) params.delete("subjectId"); const result = await api<{ items: EssaySummary[]; total: number }>(`/api/essays?${params}`); setItems(result.items); setTotal(result.total); }
   useEffect(() => {

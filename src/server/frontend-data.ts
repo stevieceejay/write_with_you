@@ -1,14 +1,15 @@
 import "server-only";
+import { auth } from "@clerk/nextjs/server";
 import { backend } from "./app.ts";
-import { AppError } from "./errors.ts";
-import type { EssaySummary, Subject } from "../features/writing/types.ts";
+import { loadDashboard } from "./dashboard-loader.ts";
 export async function dashboardData(input: { query?: string; folder?: string } = {}) {
-  try {
-    const [essays, subjects] = await Promise.all([backend.listEssays({ ...input, limit: 12 }), backend.listSubjects()]);
-    return { initialEssays: JSON.parse(JSON.stringify(essays.items)) as EssaySummary[], subjects: subjects.map(({ id, name }) => ({ id, name })) as Subject[], total: essays.total, authenticated: true };
-  } catch (error) {
-    const unavailable = !(error instanceof AppError) || !["UNAUTHENTICATED", "UNAVAILABLE"].includes(error.code);
-    return { initialEssays: [] as EssaySummary[], subjects: [] as Subject[], total: 0, authenticated: false,
-      ...(unavailable ? { loadError: "We couldn’t load your writing space. Please try again shortly." } : {}) };
-  }
+  return loadDashboard(input, {
+    signedIn: async () => Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && (await auth()).userId),
+    listEssays: input => backend.listEssays(input),
+    listSubjects: () => backend.listSubjects(),
+    reportError: error => {
+      const candidate = error && typeof error === "object" && "code" in error ? String(error.code) : "UNKNOWN";
+      console.error("dashboard_load_failed", { code: /^[A-Z0-9_]{1,40}$/.test(candidate) ? candidate : "UNKNOWN" });
+    },
+  });
 }

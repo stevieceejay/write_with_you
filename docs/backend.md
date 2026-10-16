@@ -39,6 +39,16 @@ server reads profile information from Clerk and creates the application's User r
 It never automatically merges accounts just because their email addresses match.
 Clerk handles passwords, session cookies, verification, recovery, and sign-out.
 
+The public optional catch-all routes `/sign-in/[[...sign-in]]` and
+`/sign-up/[[...sign-up]]` render Clerk's SignIn and SignUp components. Set
+`NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in` and
+`NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up` in the local environment. Set both
+`NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` and
+`NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` to `/essays`. These are fallbacks:
+a redirect URL supplied by the sign-in flow can still return the student to the
+page they came from. Middleware establishes session context without protecting
+the sign-in/up pages; data access checks remain in the server services.
+
 The Prisma runtime uses the pooled DATABASE_URL with the Node PostgreSQL driver adapter
 and a small reusable pool. Migration configuration prefers DATABASE_URL_UNPOOLED.
 This preserves interactive transactions and PostgreSQL locking for saves and snapshots.

@@ -10,7 +10,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node scripts/smoke-test.mjs",
-    "test": "node --experimental-strip-types --test tests/backend.test.mjs tests/function.test.mjs tests/frontend.test.mjs tests/frontend-render.test.mjs",
+    "test": "node --experimental-strip-types --test tests/backend.test.mjs tests/function.test.mjs tests/frontend.test.mjs tests/frontend-render.test.mjs tests/dashboard.test.mjs",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
     "db:preflight": "node scripts/database-preflight.mjs",
